@@ -11,9 +11,10 @@
 @media(prefers-color-scheme:dark){:root{--bg:#10161c;--panel:#18212a;--ink:#e6edf3;--mute:#93a1ae;--line:#2b3946;--acc:#35b4d3;--hot:#ff6a52}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);display:flex;height:100vh;height:100dvh}
-aside{width:280px;flex:none;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+aside{width:290px;flex:none;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
 h1{font-size:17px;margin:0}
 h2{font-size:13px;margin:0 0 6px;color:var(--mute);font-weight:600}
+h3{font-size:13px;margin:8px 0 0}
 section{border-top:1px solid var(--line);padding-top:10px}
 button,input{font:inherit;color:inherit}
 button{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
@@ -22,14 +23,17 @@ button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 label{display:flex;justify-content:space-between;font-size:13px;gap:8px;align-items:center;margin:4px 0}
+label.chk{justify-content:flex-start;font-size:14px;cursor:pointer}
+label.chk input{width:18px;height:18px;accent-color:var(--acc)}
 input[type=range]{flex:1}
 input[type=number]{width:60px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 5px}
 main{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
-#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;left:0}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 #hint{font-size:13px;color:var(--mute);flex:1;min-width:200px}
 #wrap{position:relative;width:100%;flex:none;border:1px solid var(--line);background:#fff}
 canvas{display:block;width:100%;height:auto;touch-action:manipulation}
 .big{font-size:30px;font-weight:700;line-height:1.1}
+.cov{font-size:15px;margin-top:4px}
 .bad{color:var(--hot)}
 .empty{display:flex;align-items:center;justify-content:center;min-height:50vh;border:2px dashed var(--line);border-radius:10px;color:var(--mute);text-align:center;padding:20px}
 @media(max-width:800px){body{flex-direction:column;height:auto}aside{width:100%;border-right:0;border-bottom:1px solid var(--line)}}
@@ -44,26 +48,32 @@ canvas{display:block;width:100%;height:auto;touch-action:manipulation}
     <label id="pgRow" hidden>PDF page <input type="number" id="pg" min="1" value="1"></label>
   </section>
   <section>
-    <h2>2. Mark the plan</h2>
+    <h2>2. What should cameras cover?</h2>
+    <label class="chk"><input type="checkbox" id="chkO" checked> Outdoor cameras (outside areas)</label>
+    <label class="chk"><input type="checkbox" id="chkI" checked> Indoor cameras (inside areas)</label>
+    <h3>Camera types</h3>
+    <label>Outdoor FOV <input type="range" id="oFov" min="30" max="360" value="90"><b id="oFovV"></b></label>
+    <label>Outdoor range <input type="range" id="oRng" min="3" max="80" value="25"><b id="oRngV"></b></label>
+    <label>Indoor FOV <input type="range" id="iFov" min="30" max="360" value="100"><b id="iFovV"></b></label>
+    <label>Indoor range <input type="range" id="iRng" min="2" max="40" value="8"><b id="iRngV"></b></label>
+  </section>
+  <section>
+    <h2>3. Mark the plan</h2>
     <div class="row" id="tools">
       <button data-t="view" class="on">View</button>
-      <button data-t="area">Area to cover</button>
+      <button data-t="out">Outdoor zone</button>
+      <button data-t="in">Indoor zone</button>
       <button data-t="wall">Draw wall</button>
       <button data-t="scale">Set scale</button>
     </div>
-    <div class="row" style="margin-top:6px"><button id="undo">Undo wall</button><button id="clr">Clear marks</button></div>
+    <div class="row" style="margin-top:6px"><button id="uw">Undo wall</button><button id="uz">Undo zone</button><button id="clr">Clear marks</button></div>
     <p id="toolHelp" style="font-size:12px;color:var(--mute);margin:6px 0 0"></p>
-  </section>
-  <section>
-    <h2>3. Camera type</h2>
-    <label>Field of view <input type="range" id="fov" min="30" max="360" value="90"><b id="fovV"></b></label>
-    <label>Range <input type="range" id="rng" min="2" max="60" value="12"><b id="rngV"></b></label>
   </section>
   <section>
     <h2>Result</h2>
     <div class="big" id="cnt">–</div>
-    <div class="big" id="stat" style="font-size:20px;margin-top:2px"></div>
-    <div id="statSub" style="font-size:13px;color:var(--mute);margin-top:4px">Cameras are placed automatically.</div>
+    <div id="split" style="font-size:13px;color:var(--mute)"></div>
+    <div id="stat"></div>
   </section>
   <section>
     <h2>4. Download</h2>
@@ -80,13 +90,13 @@ canvas{display:block;width:100%;height:auto;touch-action:manipulation}
 </main>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-const $=id=>document.getElementById(id), cv=$("cv"), ctx=cv.getContext("2d");
-let bg=null,cams=[],walls=[],area=[],areaClosed=true,ppm=30,tool="view",tmp=null,first=null,pdfDoc=null,zoom=100,timer=null;
+const $=id=>document.getElementById(id),cv=$("cv"),ctx=cv.getContext("2d");
+let bg=null,cams=[],walls=[],zones=[],cur=null,ppm=30,tool="view",tmp=null,first=null,pdfDoc=null,zoom=100,timer=null;
 const COL=["#0b6e8a","#7a3fd1","#1f8a4c","#c26a00","#b0306b","#3a5fcd"];
-const HELP={view:"Scroll to move around. Use + / − to zoom.",area:"Click the corners of the area to protect. Double-click to finish. If you skip this, the whole plan is used.",wall:"Click the start and end of each wall. Walls block the camera view.",scale:"Click two points of known distance, then enter the real length in metres."};
-const rad=d=>d*Math.PI/180,num=id=>+$(id).value;
+const NAME={out:"Outdoor",in:"Indoor"},ZC={out:"#1f9d55",in:"#2878dc"},ID={out:"o",in:"i"},CHK={out:"chkO",in:"chkI"};
+const HELP={view:"Scroll to move around. Use + / − to zoom.",out:"Click the corners of an outdoor area (yard, parking, road side). Double-click to finish. Draw as many as you need.",in:"Click the corners of an indoor area (room, hall). Double-click to finish. Draw as many as you need.",wall:"Click the start and end of each wall. Walls block the camera view.",scale:"Click two points of known distance, then enter the real length in metres."};
+const rad=d=>d*Math.PI/180,num=id=>+$(id).value,on=t=>$(CHK[t]).checked;
 
-/* ---------- zoom ---------- */
 function setZoom(z){zoom=Math.max(50,Math.min(500,z));$("wrap").style.width=zoom+"%";$("zv").textContent=zoom+"%";}
 $("zi").onclick=()=>setZoom(zoom+25);$("zo").onclick=()=>setZoom(zoom-25);$("zf").onclick=()=>setZoom(100);
 
@@ -112,9 +122,9 @@ function setBg(src,w,h){
   const k=Math.min(1,2400/w);cv.width=Math.round(w*k);cv.height=Math.round(h*k);
   bg=document.createElement("canvas");bg.width=cv.width;bg.height=cv.height;
   const g=bg.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,bg.width,bg.height);g.drawImage(src,0,0,bg.width,bg.height);
-  cams=[];walls=[];area=[];areaClosed=true;ppm=cv.width/40;
+  cams=[];walls=[];zones=[];cur=null;ppm=cv.width/40;
   $("empty").hidden=true;$("wrap").hidden=false;setZoom(100);setTool("view");
-  $("hint").textContent="Tip: use Set scale first (real distance), then draw the area and walls.";recalc();
+  $("hint").textContent="Tip: Set scale first, then draw Outdoor / Indoor zones and walls.";recalc();
 }
 
 /* ---------- geometry ---------- */
@@ -125,7 +135,7 @@ function segT(ax,ay,bx,by,cx,cy,dx,dy){
 }
 function blocked(cx,cy,px,py){for(const w of walls){const t=segT(cx,cy,px,py,w[0],w[1],w[2],w[3]);if(t!==null&&t<0.999)return true;}return false;}
 function covers(c,px,py){
-  const R=c.range*ppm,dx=px-c.x,dy=py-c.y,d=Math.hypot(dx,dy);if(d>R)return false;
+  const dx=px-c.x,dy=py-c.y,d=Math.hypot(dx,dy);if(d>c.range*ppm)return false;
   if(c.fov<360&&d>1){let a=Math.atan2(dy,dx)-rad(c.dir);a=Math.atan2(Math.sin(a),Math.cos(a));if(Math.abs(a)>rad(c.fov)/2)return false;}
   return !blocked(c.x,c.y,px,py);
 }
@@ -139,58 +149,72 @@ function vis(c){
   return pts;
 }
 function inPoly(x,y,p){let o=false;for(let i=0,j=p.length-1;i<p.length;j=i++){if((p[i][1]>y)!==(p[j][1]>y)&&x<(p[j][0]-p[i][0])*(y-p[i][1])/(p[j][1]-p[i][1])+p[i][0])o=!o;}return o;}
-function theArea(){if(area.length>2&&areaClosed)return area;const m=cv.width*0.02,W=cv.width-m,H=cv.height-m;return[[m,m],[W,m],[W,H],[m,H]];}
-function samples(poly,step){
-  const xs=poly.map(p=>p[0]),ys=poly.map(p=>p[1]),out=[];
-  for(let y=Math.min(...ys)+step/2;y<Math.max(...ys);y+=step)for(let x=Math.min(...xs)+step/2;x<Math.max(...xs);x+=step)if(inPoly(x,y,poly))out.push([x,y]);
-  return out;
+function bbox(p){const xs=p.map(q=>q[0]),ys=p.map(q=>q[1]);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];}
+function samples(poly,step){const[a,b,c,d]=bbox(poly),o=[];for(let y=b+step/2;y<d;y+=step)for(let x=a+step/2;x<c;x+=step)if(inPoly(x,y,poly))o.push([x,y]);return o;}
+function samplesZ(zs,step){return zs.flatMap(z=>samples(z,step));}
+function stepZ(zs,cap){let A=0;zs.forEach(z=>{const b=bbox(z);A+=(b[2]-b[0])*(b[3]-b[1]);});return Math.max(6,Math.sqrt(A/cap));}
+/* zones to cover for a camera type. No zones drawn = whole plan, used by the first ticked type */
+function zonesOf(t){
+  if(!on(t))return[];
+  if(!zones.length){const first=on("out")?"out":"in";if(t!==first)return[];const m=cv.width*0.02;return[[[m,m],[cv.width-m,m],[cv.width-m,cv.height-m],[m,cv.height-m]]];}
+  return zones.filter(z=>z.t===t).map(z=>z.pts);
 }
-function stepFor(poly,cap){const xs=poly.map(p=>p[0]),ys=poly.map(p=>p[1]);const A=(Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys));return Math.max(6,Math.sqrt(A/cap));}
 
 /* ---------- auto placement ---------- */
 function recalc(){clearTimeout(timer);if(!bg)return;$("cnt").textContent="…";timer=setTimeout(()=>{auto();draw();},200);}
 function auto(){
-  const poly=theArea(),fov=num("fov"),range=num("rng");
-  const st=stepFor(poly,1000),S=samples(poly,st);cams=[];if(!S.length)return;
-  const cstep=Math.max(ppm*1.5,stepFor(poly,110));let cand=samples(poly,cstep);if(!cand.length)cand=S.slice(0,40);
-  const dstep=fov>=360?360:Math.max(20,fov/2),opts=[];
-  for(const q of cand)for(let d=0;d<360;d+=dstep){
-    const c={x:q[0],y:q[1],dir:d,fov,range},set=[];S.forEach((s,i)=>{if(covers(c,s[0],s[1]))set.push(i);});if(set.length)opts.push({c,set});
-  }
-  const need=new Set(S.map((_,i)=>i));
-  while(need.size>S.length*0.005&&cams.length<40){
-    let best=null,bn=0;for(const o of opts){let n=0;for(const i of o.set)if(need.has(i))n++;if(n>bn){bn=n;best=o;}}
-    if(!best||bn<2)break;cams.push(best.c);best.set.forEach(i=>need.delete(i));
+  cams=[];
+  for(const t of["out","in"]){
+    const zs=zonesOf(t);if(!zs.length)continue;
+    const fov=num(ID[t]+"Fov"),range=num(ID[t]+"Rng"),S=samplesZ(zs,stepZ(zs,1000));if(!S.length)continue;
+    const cstep=Math.max(ppm*1.5,stepZ(zs,110));let cand=samplesZ(zs,cstep);
+    zs.forEach(z=>z.forEach((p,i)=>{cand.push(p);const q=z[(i+1)%z.length];cand.push([(p[0]+q[0])/2,(p[1]+q[1])/2]);}));
+    const dstep=fov>=360?360:Math.max(20,fov/2),opts=[];
+    for(const q of cand)for(let d=0;d<360;d+=dstep){
+      const c={x:q[0],y:q[1],dir:d,fov,range,t},set=[];S.forEach((s,i)=>{if(covers(c,s[0],s[1]))set.push(i);});if(set.length)opts.push({c,set});
+    }
+    const need=new Set(S.map((_,i)=>i));let n=0;
+    while(need.size>S.length*0.005&&n<25){
+      let best=null,bn=0;for(const o of opts){let k=0;for(const i of o.set)if(need.has(i))k++;if(k>bn){bn=k;best=o;}}
+      if(!best||bn<2)break;cams.push(best.c);best.set.forEach(i=>need.delete(i));n++;
+    }
   }
 }
 
 /* ---------- drawing ---------- */
+function polyPath(p,close){ctx.beginPath();p.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));if(close)ctx.closePath();}
 function draw(){
   if(!bg)return;
   ctx.clearRect(0,0,cv.width,cv.height);ctx.drawImage(bg,0,0);
-  const lw=Math.max(2,cv.width/700);
-  if(area.length){ctx.beginPath();area.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));if(areaClosed)ctx.closePath();ctx.fillStyle="rgba(40,120,220,.07)";if(areaClosed)ctx.fill();ctx.setLineDash([8,5]);ctx.strokeStyle="#2878dc";ctx.lineWidth=lw;ctx.stroke();ctx.setLineDash([]);
-    if(!areaClosed){ctx.fillStyle="#2878dc";area.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],lw*2,0,7);ctx.fill();});}}
+  const lw=Math.max(2,cv.width/700),fs=Math.round(cv.width/80);
+  zones.forEach(z=>{polyPath(z.pts,true);ctx.fillStyle=ZC[z.t]+"1c";ctx.fill();ctx.setLineDash([8,5]);ctx.strokeStyle=ZC[z.t];ctx.lineWidth=lw;ctx.stroke();ctx.setLineDash([]);
+    const b=bbox(z.pts);ctx.fillStyle=ZC[z.t];ctx.font="600 "+fs+"px sans-serif";ctx.textAlign="center";ctx.fillText(NAME[z.t],(b[0]+b[2])/2,(b[1]+b[3])/2);});
+  if(cur&&cur.pts.length){polyPath(cur.pts,false);ctx.strokeStyle=ZC[cur.t];ctx.lineWidth=lw;ctx.stroke();ctx.fillStyle=ZC[cur.t];cur.pts.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],lw*2,0,7);ctx.fill();});}
   cams.forEach((c,i)=>{const v=vis(c);ctx.beginPath();ctx.moveTo(c.x,c.y);v.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=COL[i%6]+"38";ctx.fill();ctx.strokeStyle=COL[i%6]+"aa";ctx.lineWidth=1;ctx.stroke();});
-  const poly=theArea(),st=stepFor(poly,2500),S=samples(poly,st);let cov=0;ctx.fillStyle="rgba(214,54,31,.55)";
-  for(const s of S){if(cams.some(c=>covers(c,s[0],s[1])))cov++;else ctx.fillRect(s[0]-st/2,s[1]-st/2,st,st);}
-  const pct=S.length?Math.round(cov/S.length*100):0,am=S.length*st*st/ppm/ppm;
+  let html="",cntT={out:0,in:0},any=false;
+  for(const t of["out","in"]){
+    const zs=zonesOf(t);if(!zs.length)continue;any=true;
+    const st=stepZ(zs,2500),S=samplesZ(zs,st),cs=cams.filter(c=>c.t===t);let cov=0;ctx.fillStyle="rgba(214,54,31,.55)";
+    for(const s of S){if(cs.some(c=>covers(c,s[0],s[1])))cov++;else ctx.fillRect(s[0]-st/2,s[1]-st/2,st,st);}
+    const pct=S.length?Math.round(cov/S.length*100):0;cntT[t]=cs.length;
+    html+=`<div class="cov${pct<100?" bad":""}"><b>${NAME[t]}:</b> ${cs.length} cam, ${pct}% covered <span style="color:var(--mute);font-size:12px">(≈${(S.length*st*st/ppm/ppm).toFixed(0)} m²)</span></div>`;
+  }
+  $("stat").innerHTML=any?html+`<div style="font-size:12px;color:var(--mute);margin-top:4px">Red = blind spots.${zones.length?"":" No zones drawn, so the whole plan is used."}</div>`:`<div style="font-size:13px;color:var(--mute)">Tick Outdoor and/or Indoor cameras.</div>`;
   $("cnt").textContent=cams.length+(cams.length===1?" camera":" cameras");
-  $("stat").textContent=pct+"% covered";$("stat").className="big"+(pct<100?" bad":"");
-  $("statSub").textContent=`Area ≈ ${am.toFixed(0)} m². Red = blind spots (${100-pct}%).`+(area.length>2&&areaClosed?"":" Whole plan used (no area drawn).");
+  $("split").textContent=any?`Outdoor ${cntT.out} · Indoor ${cntT.in}`:"";
   ctx.strokeStyle="#e0701a";ctx.lineWidth=lw*1.8;ctx.lineCap="round";walls.forEach(w=>{ctx.beginPath();ctx.moveTo(w[0],w[1]);ctx.lineTo(w[2],w[3]);ctx.stroke();});
   if(tmp){ctx.strokeStyle="#888";ctx.lineWidth=lw;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(tmp.a[0],tmp.a[1]);ctx.lineTo(tmp.b[0],tmp.b[1]);ctx.stroke();ctx.setLineDash([]);}
   const r=Math.max(10,cv.width/110);
   cams.forEach((c,i)=>{
     ctx.strokeStyle=COL[i%6];ctx.lineWidth=lw*1.2;ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(c.x+Math.cos(rad(c.dir))*r*2,c.y+Math.sin(rad(c.dir))*r*2);ctx.stroke();
-    ctx.fillStyle=COL[i%6];ctx.beginPath();ctx.arc(c.x,c.y,r,0,7);ctx.fill();
-    ctx.fillStyle="#fff";ctx.font="bold "+Math.round(r*1.1)+"px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(i+1,c.x,c.y+1);
+    ctx.fillStyle=COL[i%6];ctx.beginPath();if(c.t==="in")ctx.rect(c.x-r,c.y-r,2*r,2*r);else ctx.arc(c.x,c.y,r,0,7);ctx.fill();
+    ctx.fillStyle="#fff";ctx.font="bold "+Math.round(r*1.1)+"px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(i+1,c.x,c.y+1);ctx.textBaseline="alphabetic";
   });
 }
 
 /* ---------- interaction ---------- */
 function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];}
-function setTool(t){tool=t;tmp=null;first=null;document.querySelectorAll("#tools button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));$("toolHelp").textContent=HELP[t];cv.style.cursor=t==="view"?"default":"crosshair";draw();}
+function setTool(t){tool=t;tmp=null;first=null;cur=null;document.querySelectorAll("#tools button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));$("toolHelp").textContent=HELP[t];cv.style.cursor=t==="view"?"default":"crosshair";draw();}
 document.querySelectorAll("#tools button").forEach(b=>b.onclick=()=>setTool(b.dataset.t));
 cv.onpointerdown=e=>{
   if(!bg||tool==="view")return;const p=pos(e);
@@ -202,24 +226,30 @@ cv.onpointerdown=e=>{
       first=null;tmp=null;
     }
     draw();
-  }else if(tool==="area"){if(areaClosed){area=[];areaClosed=false;}area.push(p);draw();}
+  }else{if(!cur)cur={t:tool,pts:[]};cur.pts.push(p);draw();}
 };
 cv.onpointermove=e=>{if(tmp){tmp.b=pos(e);draw();}};
-cv.ondblclick=()=>{if(tool==="area"&&!areaClosed){area.pop();if(area.length>2){areaClosed=true;setTool("view");recalc();}else{area=[];areaClosed=true;draw();}}};
-$("undo").onclick=()=>{walls.pop();recalc();draw();};
-$("clr").onclick=()=>{if(confirm("Remove all walls and the drawn area?")){walls=[];area=[];areaClosed=true;recalc();}};
-function lab(){$("fovV").textContent=num("fov")+"°";$("rngV").textContent=num("rng")+" m";}
-["fov","rng"].forEach(id=>$(id).oninput=()=>{lab();recalc();});
+cv.ondblclick=()=>{
+  if(!cur)return;cur.pts.pop();
+  if(cur.pts.length>2){zones.push({t:cur.t,pts:cur.pts});cur=null;recalc();draw();}else{cur=null;draw();}
+};
+$("uw").onclick=()=>{walls.pop();recalc();};
+$("uz").onclick=()=>{zones.pop();recalc();};
+$("clr").onclick=()=>{if(confirm("Remove all walls and zones?")){walls=[];zones=[];cur=null;recalc();}};
+function lab(){["oFov","iFov"].forEach(i=>$(i+"V").textContent=num(i)+"°");["oRng","iRng"].forEach(i=>$(i+"V").textContent=num(i)+" m");}
+["oFov","oRng","iFov","iRng","chkO","chkI"].forEach(id=>$(id).oninput=()=>{lab();recalc();});
 
 /* ---------- export ---------- */
 function out(){draw();return cv.toDataURL("image/png");}
 $("png").onclick=()=>{if(!bg)return;const a=document.createElement("a");a.href=out();a.download="cctv-plan.png";a.click();};
 $("pdf").onclick=()=>{
   if(!bg)return;const img=out(),{jsPDF}=window.jspdf,L=cv.width>=cv.height;
-  const d=new jsPDF({orientation:L?"l":"p",unit:"pt",format:"a4"}),W=d.internal.pageSize.getWidth(),H=d.internal.pageSize.getHeight()-60,k=Math.min((W-40)/cv.width,H/cv.height);
-  d.setFontSize(12);d.text("CCTV coverage plan - "+cams.length+" camera(s), "+$("stat").textContent,20,24);
-  d.setFontSize(9);d.text("Each camera: FOV "+num("fov")+" deg, range "+num("rng")+" m",20,40);
-  d.addImage(img,"PNG",20,50,cv.width*k,cv.height*k);d.save("cctv-plan.pdf");
+  const d=new jsPDF({orientation:L?"l":"p",unit:"pt",format:"a4"}),W=d.internal.pageSize.getWidth(),H=d.internal.pageSize.getHeight()-70,k=Math.min((W-40)/cv.width,H/cv.height);
+  const oc=cams.filter(c=>c.t==="out").length,ic=cams.length-oc;
+  d.setFontSize(12);d.text("CCTV coverage plan - "+cams.length+" camera(s): outdoor "+oc+", indoor "+ic,20,24);
+  d.setFontSize(9);d.text($("stat").innerText.replace(/\n+/g,"  |  ").slice(0,200),20,40);
+  d.text("Outdoor cam FOV "+num("oFov")+" deg, range "+num("oRng")+" m. Indoor cam FOV "+num("iFov")+" deg, range "+num("iRng")+" m.",20,54);
+  d.addImage(img,"PNG",20,62,cv.width*k,cv.height*k);d.save("cctv-plan.pdf");
 };
 lab();$("toolHelp").textContent=HELP.view;
 </script>
